@@ -1,19 +1,19 @@
 import os
 import requests
 
-TOKEN = os.environ.get("PINTEREST_TOKEN")
+TOKEN = os.environ.get("PINTEREST_TOKEN", "").strip()
 
 headers = {
     "Authorization": f"Bearer {TOKEN}",
     "Content-Type": "application/json"
 }
 
-res = requests.get("https://api.pinterest.com/v5/boards", headers=headers)
-data = res.json()
+# 1. Try Production
+print("Testing Production...")
+res_prod = requests.get("https://api.pinterest.com/v5/boards", headers=headers)
+print("Prod Status:", res_prod.status_code, res_prod.text)
 
-print("Status Code:", res.status_code)
-if "items" in data:
-    for b in data["items"]:
-        print(f"Board Name: {b['name']} ===> Board ID: {b['id']}")
-else:
-    print("Response Data:", data)
+# 2. Try Sandbox
+print("\nTesting Sandbox...")
+res_sand = requests.get("https://api-sandbox.pinterest.com/v5/boards", headers=headers)
+print("Sandbox Status:", res_sand.status_code, res_sand.text)
