@@ -1,0 +1,25 @@
+name: Test Pinterest Connection
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-boards:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Requests
+        run: pip install requests
+
+      - name: Run Boards Fetcher
+        env:
+          PINTEREST_TOKEN: ${{ secrets.PINTEREST_TOKEN }}
+        run: python get_boards.py
+        
