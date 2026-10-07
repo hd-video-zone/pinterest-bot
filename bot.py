@@ -29,6 +29,7 @@ def run():
         )
         page = context.new_page()
 
+        # Step 1: Login
         print("Logging into Pinterest...")
         page.goto("https://www.pinterest.com/login/")
         page.wait_for_selector('input[id="email"]', timeout=30000)
@@ -38,70 +39,73 @@ def run():
         page.wait_for_timeout(8000)
 
         for item in PRODUCTS:
-            print("Creating Pin: " + item["title"])
+            print("Navigating to creation screen...")
+            # Direct Pin Creation Tool in Business Layout
             page.goto("https://www.pinterest.com/pin-creation-tool/")
             page.wait_for_timeout(6000)
 
-            # Pop-up dismiss
+            # Agar Business Hub par redirect ho jaye to Create Pin card dabayein
+            if "business" in page.url.lower():
+                print("Detected Business Hub, clicking Create Pin...")
+                create_card = page.locator('div:has-text("Create Pin"), button:has-text("Create Pin")').first
+                if create_card.is_visible():
+                    create_card.click()
+                    page.wait_for_timeout(5000)
+
+            # Tooltip Dismiss
             try:
                 page.locator('button:has-text("Got it")').first.click(timeout=3000)
+                print("Dismissed tooltip.")
             except Exception:
                 pass
 
-            # Working Image Injection (from Run #7)
-            print("Downloading and injecting image...")
+            # Image download
+            print("Downloading image...")
             res = requests.get(item["image_url"], headers={"User-Agent": "Mozilla/5.0"})
             with open("temp_pin.jpg", "wb") as f:
                 f.write(res.content)
 
-            page.evaluate('''() => {
-                let input = document.querySelector('input[type="file"]');
-                if (!input) {
-                    input = document.createElement('input');
-                    input.type = 'file';
-                    input.id = 'injected-file';
-                    document.body.appendChild(input);
-                }
-            }''')
-            page.set_input_files('input[type="file"]', "temp_pin.jpg")
-            page.wait_for_timeout(5000)
+            # Upload Image
+            print("Uploading image...")
+            file_input = page.locator('input[type="file"]')
+            if file_input.count() > 0:
+                file_input.first.set_input_files("temp_pin.jpg")
+            else:
+                page.set_input_files('input[type="file"]', "temp_pin.jpg")
+            page.wait_for_timeout(6000)
 
-            # Fill Details
-            print("Entering title, description and link...")
-            try:
-                page.locator('input[placeholder*="title"], textarea[placeholder*="title"], input[id*="title"]').first.fill(item["title"])
-            except Exception:
-                pass
+            # Fill Title
+            print("Entering title...")
+            title_box = page.locator('input[placeholder*="title"], textarea[placeholder*="title"], input[id*="title"]').first
+            title_box.click()
+            title_box.fill(item["title"])
+            page.wait_for_timeout(1000)
 
-            try:
-                page.locator('div[role="textbox"], textarea[placeholder*="about"], textarea[id*="description"]').first.fill(item["desc"])
-            except Exception:
-                pass
+            # Fill Description
+            print("Entering description...")
+            desc_box = page.locator('div[role="textbox"], textarea[placeholder*="about"], textarea[id*="description"]').first
+            desc_box.click()
+            desc_box.fill(item["desc"])
+            page.wait_for_timeout(1000)
 
-            try:
-                page.locator('input[placeholder*="link"], input[id*="link"]').first.fill(item["link"])
-            except Exception:
-                pass
-            page.wait_for_timeout(3000)
+            # Fill Destination Link
+            print("Entering link...")
+            link_box = page.locator('input[placeholder*="link"], input[id*="link"]').first
+            link_box.click()
+            link_box.fill(item["link"])
+            page.wait_for_timeout(2000)
 
-            # Direct Red Publish Button Click & Form Submit
-            print("Publishing Pin...")
-            page.evaluate('''() => {
-                const buttons = Array.from(document.querySelectorAll('button'));
-                for (const btn of buttons) {
-                    const txt = (btn.innerText || btn.textContent || "").trim();
-                    if (txt === "Publish" || txt === "Save") {
-                        btn.scrollIntoView();
-                        btn.focus();
-                        btn.click();
-                        return;
-                    }
-                }
-            }''')
-            page.wait_for_timeout(10000)
-            print("Finished.")
+            # Click Red Publish Button
+            print("Clicking Publish...")
+            pub_btn = page.locator('button:has-text("Publish")').first
+            pub_btn.scroll_into_view_if_needed()
+            pub_btn.click(force=True)
+            
+            print("Publish clicked, waiting for save confirmation...")
+            page.wait_for_timeout(12000)
 
         browser.close()
+        print("Bot execution finished.")
 
 if __name__ == "__main__":
     run()
