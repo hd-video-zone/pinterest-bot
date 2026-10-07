@@ -1,6 +1,5 @@
 import os
 import time
-import requests
 from playwright.sync_api import sync_playwright
 
 EMAIL = os.environ.get("PINTEREST_EMAIL")
@@ -16,22 +15,20 @@ PRODUCTS = [
     }
 ]
 
-def download_image(url, save_path="temp_pin.jpg"):
-    res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-    with open(save_path, "wb") as f:
-        f.write(res.content)
-    return save_path
-
 def run():
     print("Starting Headless Bot...")
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"]
+        )
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            viewport={"width": 1280, "height": 800}
+            viewport={"width": 1440, "height": 900}
         )
         page = context.new_page()
 
+        # Login
         print("Logging into Pinterest...")
         page.goto("https://www.pinterest.com/login/")
         page.wait_for_selector('input[id="email"]', timeout=30000)
@@ -41,54 +38,72 @@ def run():
         page.wait_for_timeout(8000)
 
         for item in PRODUCTS:
-            print(f"Opening Pin Creation: {item['title']}")
-            img_path = download_image(item["image_url"])
-
-            # Direct Pin Creation Tool
+            print(f"Creating Pin: {item['title']}")
             page.goto("https://www.pinterest.com/pin-creation-tool/")
-            page.wait_for_timeout(6000)
+            page.wait_for_timeout(7000)
 
-            # Agar redirect hokar pin-builder par chala jaye
-            if "pin-creation-tool" not in page.url:
-                page.goto("https://www.pinterest.com/pin-builder/")
-                page.wait_for_timeout(6000)
-
-            print("Uploading image file...")
-            # Try multiple file input handles
-            file_input = page.locator('input[type="file"]')
-            try:
-                file_input.wait_for(state="attached", timeout=15000)
-                file_input.set_input_files(img_path)
-            except Exception:
-                # Fallback for hidden drag-drop targets
-                page.set_input_files('input[type="file"]', img_path)
+            # Check if direct file input exists or Save from URL
+            save_from_url_btn = page.locator('button:has-text("Save from URL"), div[role="button"]:has-text("Save from URL")')
             
-            page.wait_for_timeout(4000)
+            if save_from_url_btn.count() > 0 and save_from_url_btn.first.is_visible():
+                print("Using Save from URL option...")
+                save_from_url_btn.first.click()
+                page.wait_for_timeout(2000)
+                url_input = page.locator('input[placeholder*="http"], input[type="text"]').first
+                url_input.fill(item["image_url"])
+                page.keyboard.press("Enter")
+                page.wait_for_timeout(5000)
+                # Select first image thumbnail
+                thumb = page.locator('div[role="button"] img, img').first
+                if thumb.is_visible():
+                    thumb.click()
+                    add_pin_btn = page.locator('button:has-text("Add Pin"), button:has-text("Add pin")').first
+                    if add_pin_btn.is_visible():
+                        add_pin_btn.click()
+            else:
+                print("Setting image via input element directly...")
+                import requests
+                res = requests.get(item["image_url"], headers={"User-Agent": "Mozilla/5.0"})
+                with open("temp_pin.jpg", "wb") as f:
+                    f.write(res.content)
+                page.evaluate("""() => {
+                    let input = document.querySelector('input[type="file"]');
+                    if (!input) {
+                        input = document.createElement('input');
+                        input.type = 'file';
+                        input.id = 'injected-file';
+                        document.body.appendChild(input);
+                    }
+                }""")
+                page.set_input_files('input[type="file"]', "temp_pin.jpg")
 
-            print("Filling details...")
-            # Title
-            title_input = page.locator('input[placeholder*="title"], textarea[placeholder*="title"], input[id*="title"]').first
-            if title_input.is_visible():
-                title_input.fill(item["title"])
+            page.wait_for_timeout(5000)
 
-            # Description
-            desc_input = page.locator('div[role="textbox"], textarea[placeholder*="description"], textarea[id*="description"]').first
-            if desc_input.is_visible():
-                desc_input.fill(item["desc"])
+            # Details
+            print("Entering title, description and link...")
+            try:
+                page.locator('input[id*="title"], textarea[id*="title"]').first.fill(item["title"])
+            except Exception:
+                pass
 
-            # Destination Link
-            link_input = page.locator('input[placeholder*="link"], input[id*="link"]').first
-            if link_input.is_visible():
-                link_input.fill(item["link"])
+            try:
+                page.locator('div[role="textbox"], textarea[id*="description"]').first.fill(item["desc"])
+            except Exception:
+                pass
+
+            try:
+                page.locator('input[id*="link"], input[placeholder*="link"]').first.fill(item["link"])
+            except Exception:
+                pass
 
             page.wait_for_timeout(2000)
 
-            # Publish
-            print("Publishing Pin...")
-            publish_btn = page.locator('button:has-text("Publish"), button:has-text("Save")').first
+            # Publish Click
+            print("Clicking Publish...")
+            publish_btn = page.locator('button[data-test-id*="board-dropdown-save-button"], button:has-text("Publish"), button:has-text("Save")').first
             publish_btn.click()
-            page.wait_for_timeout(8000)
-            print("Pin successfully published!")
+            page.wait_for_timeout(7000)
+            print("Pin posted!")
 
         browser.close()
 
