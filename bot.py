@@ -29,7 +29,6 @@ def run():
         )
         page = context.new_page()
 
-        # Login
         print("Logging into Pinterest...")
         page.goto("https://www.pinterest.com/login/")
         page.wait_for_selector('input[id="email"]', timeout=30000)
@@ -39,17 +38,16 @@ def run():
         page.wait_for_timeout(8000)
 
         for item in PRODUCTS:
-            print(f"Creating Pin: {item['title']}")
+            print("Creating Pin: " + item["title"])
             page.goto("https://www.pinterest.com/pin-creation-tool/")
             page.wait_for_timeout(6000)
 
-            # Upload Image
             print("Setting image...")
             res = requests.get(item["image_url"], headers={"User-Agent": "Mozilla/5.0"})
             with open("temp_pin.jpg", "wb") as f:
                 f.write(res.content)
-                
-            page.evaluate("""() => {
+
+            page.evaluate('''() => {
                 let input = document.querySelector('input[type="file"]');
                 if (!input) {
                     input = document.createElement('input');
@@ -57,11 +55,10 @@ def run():
                     input.id = 'injected-file';
                     document.body.appendChild(input);
                 }
-            }""")
+            }''')
             page.set_input_files('input[type="file"]', "temp_pin.jpg")
             page.wait_for_timeout(4000)
 
-            # Fill Details
             print("Entering title, description and link...")
             try:
                 page.locator('input[id*="title"], textarea[id*="title"]').first.fill(item["title"])
@@ -74,4 +71,31 @@ def run():
                 pass
 
             try:
-                page.locator('input[id*="link"], input[placeholder*="link"]').first.
+                page.locator('input[id*="link"], input[placeholder*="link"]').first.fill(item["link"])
+            except Exception:
+                pass
+            page.wait_for_timeout(2000)
+
+            print("Selecting board and publishing...")
+            board_name = item["board"]
+            try:
+                board_btn = page.locator('button[data-test-id*="board-dropdown-select-button"], div[data-test-id*="board-dropdown"]').first
+                if board_btn.is_visible():
+                    board_btn.click()
+                    page.wait_for_timeout(1500)
+                    target_board = page.locator('div[title*="' + board_name + '"]').first
+                    if target_board.is_visible():
+                        target_board.click()
+                        page.wait_for_timeout(1000)
+            except Exception as e:
+                print("Board select bypass:", e)
+
+            save_btn = page.locator('button[data-test-id*="board-dropdown-save-button"], button:has-text("Publish"), button:has-text("Save")').first
+            save_btn.dispatch_event("click")
+            print("Publish clicked!")
+            page.wait_for_timeout(8000)
+
+        browser.close()
+
+if __name__ == "__main__":
+    run()
