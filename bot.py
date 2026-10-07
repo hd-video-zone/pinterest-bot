@@ -74,34 +74,4 @@ def run():
                 pass
 
             try:
-                page.locator('input[id*="link"], input[placeholder*="link"]').first.fill(item["link"])
-            except Exception:
-                pass
-            page.wait_for_timeout(2000)
-
-            # Select Board & Publish
-            print("Selecting board and publishing...")
-            try:
-                # Board dropdown open karein agar exist karta hai
-                board_btn = page.locator('button[data-test-id*="board-dropdown-select-button"], div[data-test-id*="board-dropdown"]').first
-                if board_btn.is_visible():
-                    board_btn.click()
-                    page.wait_for_timeout(1500)
-                    # Board name select
-                    target_board = page.locator(f'div[title*="{item[\"board\"]}"]').first
-                    if target_board.is_visible():
-                        target_board.click()
-                        page.wait_for_timeout(1000)
-            except Exception as e:
-                print("Board select bypass:", e)
-
-            # Final Save/Publish click
-            save_btn = page.locator('button[data-test-id*="board-dropdown-save-button"], button:has-text("Publish"), button:has-text("Save")').first
-            save_btn.dispatch_event('click')
-            print("Publish clicked!")
-            page.wait_for_timeout(8000)
-
-        browser.close()
-
-if __name__ == "__main__":
-    run()
+                page.locator('input[id*="link"], input[placeholder*="link"]').first.
