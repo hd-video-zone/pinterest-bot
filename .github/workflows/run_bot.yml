@@ -27,3 +27,10 @@ jobs:
           PINTEREST_EMAIL: ${{ secrets.PINTEREST_EMAIL }}
           PINTEREST_PASSWORD: ${{ secrets.PINTEREST_PASSWORD }}
         run: python bot.py
+
+      - name: Save Debug Screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-screenshot
+          path: after_publish.png
