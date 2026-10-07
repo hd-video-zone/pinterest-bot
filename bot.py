@@ -29,7 +29,6 @@ def run():
         )
         page = context.new_page()
 
-        # Step 1: Login
         print("Logging into Pinterest...")
         page.goto("https://www.pinterest.com/login/")
         page.wait_for_selector('input[id="email"]', timeout=30000)
@@ -39,79 +38,67 @@ def run():
         page.wait_for_timeout(8000)
 
         for item in PRODUCTS:
-            print("Creating Pin: " + item["title"])
+            print("Navigating to creation tool...")
             page.goto("https://www.pinterest.com/pin-creation-tool/")
             page.wait_for_timeout(6000)
 
-            # Step 2: Tooltip popup dismiss (Got it button)
+            # Close popup if visible
             try:
-                got_it_btn = page.locator('button:has-text("Got it"), div[role="button"]:has-text("Got it")').first
-                if got_it_btn.is_visible():
-                    got_it_btn.click()
-                    print("Closed tooltip pop-up.")
+                got_it = page.locator('button:has-text("Got it")').first
+                if got_it.is_visible():
+                    got_it.click()
                     page.wait_for_timeout(1000)
             except Exception:
                 pass
 
-            # Step 3: Image download & upload
-            print("Downloading and uploading image...")
+            # Download Image
+            print("Downloading product image...")
             res = requests.get(item["image_url"], headers={"User-Agent": "Mozilla/5.0"})
             with open("temp_pin.jpg", "wb") as f:
                 f.write(res.content)
 
-            page.evaluate('''() => {
-                let input = document.querySelector('input[type="file"]');
-                if (!input) {
-                    input = document.createElement('input');
-                    input.type = 'file';
-                    input.id = 'injected-file';
-                    document.body.appendChild(input);
-                }
-            }''')
-            page.set_input_files('input[type="file"]', "temp_pin.jpg")
-            page.wait_for_timeout(4000)
+            # Upload Image
+            print("Uploading image...")
+            file_input = page.locator('input[type="file"]')
+            if file_input.count() > 0:
+                file_input.first.set_input_files("temp_pin.jpg")
+            else:
+                page.set_input_files('input[type="file"]', "temp_pin.jpg")
+            page.wait_for_timeout(5000)
 
-            # Step 4: Title
+            # Title
             print("Entering title...")
-            try:
-                page.locator('input[placeholder*="title"], textarea[placeholder*="title"], input[id*="title"]').first.fill(item["title"])
-            except Exception:
-                pass
+            title_field = page.locator('input[placeholder*="title"], textarea[placeholder*="title"], input[id*="title"]').first
+            title_field.click()
+            title_field.fill(item["title"])
+            page.wait_for_timeout(1000)
 
-            # Step 5: Description
+            # Description
             print("Entering description...")
-            try:
-                page.locator('div[role="textbox"], textarea[placeholder*="about"], textarea[id*="description"]').first.fill(item["desc"])
-            except Exception:
-                pass
+            desc_field = page.locator('div[role="textbox"], textarea[placeholder*="about"], textarea[id*="description"]').first
+            desc_field.click()
+            desc_field.fill(item["desc"])
+            page.wait_for_timeout(1000)
 
-            # Step 6: Link
-            print("Entering destination link...")
-            try:
-                page.locator('input[placeholder*="link"], input[id*="link"]').first.fill(item["link"])
-            except Exception:
-                pass
+            # Destination Link
+            print("Entering link...")
+            link_field = page.locator('input[placeholder*="link"], input[id*="link"]').first
+            link_field.click()
+            link_field.fill(item["link"])
+            page.wait_for_timeout(2000)
 
-            page.wait_for_timeout(3000)
+            # Real UI Click on Publish button
+            print("Clicking red Publish button...")
+            publish_btn = page.locator('button:has-text("Publish")').first
+            publish_btn.wait_for(state="visible", timeout=10000)
+            publish_btn.click(force=True)
 
-            # Step 7: Red Publish Button Click
-            print("Publishing pin...")
-            page.evaluate('''() => {
-                const buttons = Array.from(document.querySelectorAll('button'));
-                for (const btn of buttons) {
-                    const text = (btn.innerText || btn.textContent || "").trim();
-                    if (text === 'Publish' || text === 'Save') {
-                        btn.click();
-                        return true;
-                    }
-                }
-                return false;
-            }''')
-            print("Publish clicked!")
+            print("Waiting for pin creation...")
             page.wait_for_timeout(10000)
+            page.screenshot(path="after_publish.png")
 
         browser.close()
-        print("Done! Pin creation complete.")
+        print("Bot execution finished.")
 
 if __name__ == "__main__":
     run()
