@@ -29,6 +29,7 @@ def run():
         )
         page = context.new_page()
 
+        # Step 1: Login
         print("Logging into Pinterest...")
         page.goto("https://www.pinterest.com/login/")
         page.wait_for_selector('input[id="email"]', timeout=30000)
@@ -42,7 +43,18 @@ def run():
             page.goto("https://www.pinterest.com/pin-creation-tool/")
             page.wait_for_timeout(6000)
 
-            print("Setting image...")
+            # Step 2: Tooltip popup dismiss (Got it button)
+            try:
+                got_it_btn = page.locator('button:has-text("Got it"), div[role="button"]:has-text("Got it")').first
+                if got_it_btn.is_visible():
+                    got_it_btn.click()
+                    print("Closed tooltip pop-up.")
+                    page.wait_for_timeout(1000)
+            except Exception:
+                pass
+
+            # Step 3: Image download & upload
+            print("Downloading and uploading image...")
             res = requests.get(item["image_url"], headers={"User-Agent": "Mozilla/5.0"})
             with open("temp_pin.jpg", "wb") as f:
                 f.write(res.content)
@@ -59,43 +71,47 @@ def run():
             page.set_input_files('input[type="file"]', "temp_pin.jpg")
             page.wait_for_timeout(4000)
 
-            print("Entering title, description and link...")
+            # Step 4: Title
+            print("Entering title...")
             try:
-                page.locator('input[id*="title"], textarea[id*="title"]').first.fill(item["title"])
+                page.locator('input[placeholder*="title"], textarea[placeholder*="title"], input[id*="title"]').first.fill(item["title"])
             except Exception:
                 pass
 
+            # Step 5: Description
+            print("Entering description...")
             try:
-                page.locator('div[role="textbox"], textarea[id*="description"]').first.fill(item["desc"])
+                page.locator('div[role="textbox"], textarea[placeholder*="about"], textarea[id*="description"]').first.fill(item["desc"])
             except Exception:
                 pass
 
+            # Step 6: Link
+            print("Entering destination link...")
             try:
-                page.locator('input[id*="link"], input[placeholder*="link"]').first.fill(item["link"])
+                page.locator('input[placeholder*="link"], input[id*="link"]').first.fill(item["link"])
             except Exception:
                 pass
-            page.wait_for_timeout(2000)
 
-            print("Selecting board and publishing...")
-            board_name = item["board"]
-            try:
-                board_btn = page.locator('button[data-test-id*="board-dropdown-select-button"], div[data-test-id*="board-dropdown"]').first
-                if board_btn.is_visible():
-                    board_btn.click()
-                    page.wait_for_timeout(1500)
-                    target_board = page.locator('div[title*="' + board_name + '"]').first
-                    if target_board.is_visible():
-                        target_board.click()
-                        page.wait_for_timeout(1000)
-            except Exception as e:
-                print("Board select bypass:", e)
+            page.wait_for_timeout(3000)
 
-            save_btn = page.locator('button[data-test-id*="board-dropdown-save-button"], button:has-text("Publish"), button:has-text("Save")').first
-            save_btn.dispatch_event("click")
+            # Step 7: Red Publish Button Click
+            print("Publishing pin...")
+            page.evaluate('''() => {
+                const buttons = Array.from(document.querySelectorAll('button'));
+                for (const btn of buttons) {
+                    const text = (btn.innerText || btn.textContent || "").trim();
+                    if (text === 'Publish' || text === 'Save') {
+                        btn.click();
+                        return true;
+                    }
+                }
+                return false;
+            }''')
             print("Publish clicked!")
-            page.wait_for_timeout(8000)
+            page.wait_for_timeout(10000)
 
         browser.close()
+        print("Done! Pin creation complete.")
 
 if __name__ == "__main__":
     run()
