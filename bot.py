@@ -12,7 +12,6 @@ PRODUCTS = [
         "desc": "Upgrade your autumn wardrobe with this cozy oversized chunky knit sweater. Trendy casual fall fashion. #amazonfinds #fashion #ad",
         "link": "https://www.amazon.com/dp/B08XYZ1234?tag=iamkieravox-20",
         "image_url": "https://m.media-amazon.com/images/I/71wK7YQZqNL._AC_UY1000_.jpg",
-        "board": "Everyday Chic Fashion"
     }
 ]
 
@@ -49,7 +48,7 @@ def run():
             except Exception:
                 pass
 
-            # Working File Injection (Run #7)
+            # Working File Injection
             print("Injecting image file...")
             res = requests.get(item["image_url"], headers={"User-Agent": "Mozilla/5.0"})
             with open("temp_pin.jpg", "wb") as f:
@@ -85,18 +84,23 @@ def run():
                 pass
             page.wait_for_timeout(3000)
 
-            # Publish Click via red button locator
-            print("Triggering Publish...")
-            try:
-                page.locator('button:has-text("Publish")').first.click(timeout=5000)
-            except Exception:
-                page.evaluate('''() => {
-                    const btns = Array.from(document.querySelectorAll('button'));
-                    const p = btns.find(b => (b.innerText || "").trim().toLowerCase() === "publish");
-                    if (p) p.click();
-                }''')
+            # Click Red Create / Publish Button
+            print("Clicking Create button...")
+            page.evaluate('''() => {
+                const buttons = Array.from(document.querySelectorAll('button'));
+                for (const btn of buttons) {
+                    const txt = (btn.innerText || btn.textContent || "").trim().toLowerCase();
+                    if (txt === "create" || txt === "publish" || txt === "save") {
+                        btn.scrollIntoView();
+                        btn.click();
+                        return;
+                    }
+                }
+            }''')
 
-            page.wait_for_timeout(10000)
+            # Wait for Pinterest processing
+            print("Waiting for upload to finish...")
+            page.wait_for_timeout(15000)
             print("Pin posted successfully!")
 
         browser.close()
